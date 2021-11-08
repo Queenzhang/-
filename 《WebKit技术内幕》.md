@@ -48,7 +48,76 @@
 
 #### HTML网页和结构
 
++ HTML网页的结构特征：
+  + 树状结构
+    + html是网页的根元素
+    + 根元素下面包含很多节点
+  + 层次结构
+    + 网页中的元素可能分布在不同的层次中
+    + ![截屏2021-11-05 下午9.06.24](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-05 下午9.06.24.png)
+    + 需要复杂变换和处理的元素，需要新层
+  + 框结构
+    + 网页中嵌入新的框结构
+    + iframe、frame、frameset
++ 网页构成
+  + HTML文本
+  + JavaScript代码
+  + CSS代码
+  + 各种资源文件
++ URL标记网络上的每个资源（URI的一直实现）
++ 加载：从“URL”到构建DOM树
++ 渲染：从DOM树到生成可视化图像
+  + 网页通常比屏幕可视面积大
+  + 当前可视区域称为视图（viewport)
++ ![截屏2021-11-05 下午9.34.22](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-05 下午9.34.22.png)
+  + 过程：
+    1. 当用户输入网页URL的时候，WebKit调用其资源加载器加载该URL对应的网页
+    2. 加载器依赖网络模块建立连接，发送请求并接收答复
+    3. WebKit接收到各种网页或者资源的数据，其中某些资源可能是同步或异步获取的
+    4. 网页被交给HTML解释器转变成一系列的词语
+    5. 解释器根据词语构建节点，形成DOM树
+    6. 如果节点是JavaScript代码的话，调用JavaScript引擎解释并执行
+    7. JavaScript代码可能会修改DOM树的结构
+    8. 如果节点需要依赖其他资源，例如图片、CSS、视频等，调用资源加载器来加载它们，但是它们是异步的，不会阻碍当前DOM树的继续创建；如果是JavaScript资源URL（没有标记异步方式），则需要停止当前DOM树的创建，直到JavaScript的资源加载并被JavaScript引擎执行后才继续DOM树的创建
+  + DOM树构建完之后，DOMContent事件触发
+  + DOM树建完并且网页所依赖的资源都加载完之后，onload事件触发
++ ![截屏2021-11-05 下午9.38.37](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-05 下午9.38.37.png)
+  + 过程：
+    1. CSS文件被CSS解释器解释称内部表示结构
+    2. CSS解释器工作完之后，在DOM树上附加解释后的样式信息，这就是RenderObject树
+    3. RenderObject节点在创建的同时，WebKit会根据网页的层次结构创建RenderLayer树，同时构建一个虚拟的绘图上下文。
++ ![截屏2021-11-05 下午9.39.07](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-05 下午9.39.07.png)
+  + 过程：
+    1. 绘图上下文是一个与平台无关的抽象类，它将每个绘图操作桥接到不同的具体实现类，也就是绘图具体实现类
+    2. 绘图实现类也可能有简单的实现，也可能有复杂的实现。
+    3. 绘图实现类将2D图形库或者3D图形库绘制的结果保存下来，交给浏览器来同浏览器界面一起显示
++ 
+
 #### WebKit架构和模块
+
++ ![截屏2021-11-06 下午11.02.54](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-06 下午11.02.54.png)
+  + WebCore：加载和渲染网页的基础部分，目前被各个浏览器所使用的WebKit共享部分
+  + JavaScriptCore引擎：WebKit默认的JavaScript引擎
+  + WebKit Ports：WebKit中非共享部分
+
++ WebKit项目重要的目录：LayoutTests、PerformanceTests、Source、Tools
++ ![截屏2021-11-08 下午7.43.52](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-08 下午7.43.52.png)
+  + Content模块和Content API将下面的渲染机制、安全机制和插件机制等隐藏起来，提供一个接口层
+
++ 多进程模型
+  + 避免因单个页面的不响应或者崩溃而影响整个浏览器的稳定性，特别是对用户界面的影响
+  + 当第三方插件崩溃时不会影响页面或者浏览器的稳定性
+  + 方便了安全模型的实施，即沙箱模型是基于多进程架构的
+
++ ![截屏2021-11-08 下午7.52.13](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-08 下午7.52.13.png)
+  + Browser进程：浏览器的主进程，负责浏览器界面的显示、各个页面的管理，是所有其他类型进程的祖先，负责它们的创建和销毁等工作，它有且仅有一个
+  + Renderer进程：网页的渲染进程
+  + NPAPI插件进程：该进程是为NPAPI类型的插件而创建的。其创建的基本原则是每种类型的插件只会被创建一次，而且仅当使用时才被创建
+  + GPU进程：最多只有一个，当且仅当GPU硬件加速打开的时候才会被创建，主要用于对3D图形加速调用的实现
+  + Pepper插件进程：同NPAPI插件进程，是为Pepper插件而创建的进程
+  + 其他类型的进程
+
++ 多线程模型
 
 #### 资源加载和网络栈
 
