@@ -99,16 +99,13 @@
   + WebCore：加载和渲染网页的基础部分，目前被各个浏览器所使用的WebKit共享部分
   + JavaScriptCore引擎：WebKit默认的JavaScript引擎
   + WebKit Ports：WebKit中非共享部分
-
 + WebKit项目重要的目录：LayoutTests、PerformanceTests、Source、Tools
 + ![截屏2021-11-08 下午7.43.52](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-08 下午7.43.52.png)
   + Content模块和Content API将下面的渲染机制、安全机制和插件机制等隐藏起来，提供一个接口层
-
 + 多进程模型
   + 避免因单个页面的不响应或者崩溃而影响整个浏览器的稳定性，特别是对用户界面的影响
   + 当第三方插件崩溃时不会影响页面或者浏览器的稳定性
   + 方便了安全模型的实施，即沙箱模型是基于多进程架构的
-
 + ![截屏2021-11-08 下午7.52.13](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-08 下午7.52.13.png)
   + Browser进程：浏览器的主进程，负责浏览器界面的显示、各个页面的管理，是所有其他类型进程的祖先，负责它们的创建和销毁等工作，它有且仅有一个
   + Renderer进程：网页的渲染进程
@@ -116,8 +113,29 @@
   + GPU进程：最多只有一个，当且仅当GPU硬件加速打开的时候才会被创建，主要用于对3D图形加速调用的实现
   + Pepper插件进程：同NPAPI插件进程，是为Pepper插件而创建的进程
   + 其他类型的进程
-
++ 进程模型的特征
+  + Browser进程和页面的渲染是分开的，这保证了页面的渲染导致的崩溃不会导致浏览器主界面的崩溃
+  + 每个页面是独立的进程，这保证了页面之间互相不影响
+  + 插件进程是独立的，插件本身的问题不会影响浏览器主界面和网页
+  + GPU硬件加速进程是独立的
 + 多线程模型
+  + 每个进程内部，都有很多的线程![截屏2021-11-10 下午7.05.41](/Users/queen/Library/Application Support/typora-user-images/截屏2021-11-10 下午7.05.41.png)
+    + 对于Browser进程，多线程主要目的是为了保持用户界面的高响应度，保证UI线程不会被任何其他费时的操作阻碍从而影响了对用户操作的响应
+    + 在Renderer进程中，Chromium不让其他操作阻止渲染线程的快速执行
+
+  + 网页加载和渲染过程基本工作方式：
+    1. Browser进程收到用户的请求，首先由UI线程处理，而且将相应的任务转给IO线程，它随即将该任务传递给Renderer进程
+    2. Renderer进程的IO线程经过简单解释后交给渲染线程。渲染线程接受请求，加载网页并渲染网页，这其中可能需要Browser进程获取资源和需要GPU进程来帮助渲染。最后Renderer进程将结果由IO线程传递给Browser进程
+    3. 最后，Browser进程接收到结果并将结果绘制出来
+
++ Content接口
+  + App
+  + Browser
+  + Common
+  + Plugin
+  + Renderer
+  + Utility
+
 
 #### 资源加载和网络栈
 
