@@ -91,7 +91,6 @@
     1. 绘图上下文是一个与平台无关的抽象类，它将每个绘图操作桥接到不同的具体实现类，也就是绘图具体实现类
     2. 绘图实现类也可能有简单的实现，也可能有复杂的实现。
     3. 绘图实现类将2D图形库或者3D图形库绘制的结果保存下来，交给浏览器来同浏览器界面一起显示
-+ 
 
 #### WebKit架构和模块
 
@@ -127,14 +126,22 @@
     1. Browser进程收到用户的请求，首先由UI线程处理，而且将相应的任务转给IO线程，它随即将该任务传递给Renderer进程
     2. Renderer进程的IO线程经过简单解释后交给渲染线程。渲染线程接受请求，加载网页并渲染网页，这其中可能需要Browser进程获取资源和需要GPU进程来帮助渲染。最后Renderer进程将结果由IO线程传递给Browser进程
     3. 最后，Browser进程接收到结果并将结果绘制出来
-
-+ Content接口
-  + App
++ Content接口:提供了一层对多进程进行渲染的抽象接口，而且还支持所有的HTML5功能、GPU硬件加速功能和沙箱机制
+  + App：与应用程序或进程的创建和初始化相关，它被所有的进程使用，用来处理一些进程的公共操作，具体包括两种类型
+    + 进程创建的初始化函数，也就是Content模块的初始化和关闭动作
+    + 各种回调函数，用来告诉嵌入者启动完成，进程启动、退出，沙盒模型初始化开始和结束等
   + Browser
-  + Common
-  + Plugin
+    + 对一些HTML5功能和其他一些高级功能实现的参与
+    + ContentBrowserClient
+  + Common：定义一些公共的接口
+  + Plugin：通知嵌入者Plugin进程合适被创建
   + Renderer
-  + Utility
+    + 获取RenderThread的消息循环、注册V8 Extension、计算JavaScript表达式等
+    + ContentRenderClient
+  + Utility：让嵌入者参与Content接口中的线程创建和消息的过滤
++ WebKit和WebKIt2嵌入式接口
+  + WebKit和WebKIt2不兼容
+  
 
 
 #### 资源加载和网络栈
