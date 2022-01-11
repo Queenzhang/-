@@ -431,7 +431,102 @@
 
 #### 渲染基础
 
++ RenderObject树：Webkit使用RenderObject树进行布局计算并保存计算结果
+  + Webkit需要将可视节点的内容绘制到最终的网页结果中，因此需要为它们建立相应的RenderObject树
+    + DOM树的document节点
+    + DOM树种的可视节点，如html、body、div等
+    + 匿名的RenderObject节点，该节点不对应于DOM树中的任何节点，而是Webkit处理上的需要
+  + 对于影子节点，Webkit也需要创建并渲染RenderObject
+  + ![1251641303724_.pic](/Users/queen/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/2.0b4.0.9/70c82dfb9120d9582c942df73e168a61/Message/MessageTemp/9e20f478899dc29eb19741386f9343c8/Image/1251641303724_.pic.jpg)
+  + RenderObject类包含了很多虚函数
+    + 遍历和修改RenderObject树的函数，如parent()、firstChild()、addChild()
+    + 计算布局和获取布局相关信息的函数，如layout()、style()
+    + 判断RenderObject对象属于哪种类型的子类
+    + 跟RenderObject对象所在的RenderLayer对象相关的操作
+    + 坐标和绘图相关的操作，如paint()、repaint()
+  + 创建RenderObject的过程
+    1. Webkit检查DOM节点是否需要创建RenderObject
+    2. 如果需要，Webkit建立或获取一个创建RenderObject对象的NodeRenderingContext对象，它会分析RenderObject对象的父节点、兄弟节点等，设置这些信息后完成插入树的操作
++ 网页层次和RenderLayer树
+  + 网页是可以分层次的，一是为了方便网页开发者开发网页并设置网页的层次；二是为了Webkit处理上的遍历，即简化渲染的逻辑
+  + Webkit会为网页的层次创建相应的RenderLayer对象，RenderLayer树是基于RenderObject树建立的。RenderLayer节点和RenderObject节点不一一对应，而是一对多
+  + RenderObject节点需要建立新的RenderLayer节点的规则
+    + DOM树的Document节点对应的RenderView节点
+    + DOM树中的Document的子女节点，即HTML节点对应的RenderBook节点
+    + 显式指定CSS位置的RenderObject节点
+    + 有透明效果的RenderObject节点
+    + 节点有溢出（overflow）、alpha或者反射等效果的RenderObject节点
+    + 使用Canvas2D和3D技术的RenderObject节点
+    + Video节点对应的RenderObject节点
+  + RenderLayer类没有子类，它表示的是网页的一个层次，没有“子层次的说法”
+  + 构建RenderLayer树：根据规则判断是否需要建立一个新的RenderLayer对象，并设置RenderLayer对象的父亲和兄弟关系即可
++ 渲染方式
+  + 绘图上下文：绘图操作被定义了一个抽象层，即绘图上下文。可分为2D绘图上下文和3D绘图上下文
+  + 渲染方式：软件渲染、硬件加速渲染、混合渲染
+    + 软件渲染（CPU）：节省内存，但是只能处理2D方面的操作。简单的网页没有复杂绘图或者多媒体方面的需求比较适合
+    + 硬件加速渲染（GPU）：适合需要使用3D绘图的操作。但会消耗更多内存资源。
+    + 混合操作：结合前两者的优点
++ Webkit软件渲染技术
+  + 软件渲染过程：Webkit遍历RenderLayer树来绘制各个层，对于每个RenderObject对象，需要三个阶段绘制，第一阶段是绘制该层中所有块的背景和边框，第二阶段是绘制浮动内容，第三阶段是前景（内容部分、轮廓等）。
+  + Chromium的多进程软件渲染技术：通过引入多进程模型，Chromium将渲染结果从Renderer进程传递到Browser进程。
+
 #### 硬件加速机制
+
++ 硬件加速基础
+
+  + GPU的硬件能力来帮助渲染网页：一旦有更新请求，如果没有分层，引擎可能需要重新绘制所有的区域。当网页分层之后，部分区域的更新可能只在网页的一层或几层，而不需要将整个网页都重新绘制。通过重绘网页的一个或几个层，并将它们和其他之前完成的层合成起来，既能使用GPU的能力，又能减少重绘的开销
+  + 硬件加速机制在RenderLayer树建立后需要：
+    + Webkit决定将哪些RenderLayer对象组合在一起，形成一个有后端存储的新层，这一层不久后会用于之后的合成（合成层）。每个新层都有一个或多个后端存储（可能是GPU的内存）。对于一个RenderLayer对象，如果它没有后端存储的新层，就使用它的父亲所使用的合成层
+    + 将每个合成层包含的这些RenderLayer内容绘制在合成层的后端存储中，可以是软件绘制也可以是硬件绘制
+    + 由合成器将多个合成层合成起来，形成网页的最终可视化结果，实际就是一张图
+  + 把C代码宏“ACCELERATED_COMPOSITING”打开后，硬件加速机制才会被开启，有关硬件加速的基础设施才会被编译进去
+  + RenderLayerBacking对象：每个合成层都有一个RenderLayerBacking，它负责管理RenderLayer所需要的所有后端存储，存储空间使用GraphicsLayer类表示。每个GraphicsLayer都使用一个GraphicsLayerClient对象，该对象能够收到GraphicsLayer的一些状态更新信息，并包含一个绘制该GraphicsLayer对象的方法
+  + 合成层特征：
+    + RenderLayer具有CSS 3D属性或CSS透视效果
+    + RenderLayer包含的RenderObject节点表示的是使用硬件加速的视频解码技术的HTML5“video”元素
+    + RenderLayer包含的RenderObject节点表示的是使用硬件加速的Canvas 2D元素或WebGL技术
+    + RenderLayer使用了CSS透明效果的动画或CSS变换的动画、
+    + RenderLayer使用了硬件加速的CSS Filters技术
+    + RenderLayer使用了剪裁（Clip）或反射（Reflection）属性，并且它的后代中包括一个合成层
+    + RenderLayer有一个Z坐标比自己小的兄弟节点，且该节点是一个合成层
+  + 合成层的好处：
+    + 合并一些RenderLayer层，减少内存的使用量
+    + 合并之后，尽量减少合并带来的重绘性能和处理上的困难
+    + 对于那些使用单独层能够显著提升性能的RenderLayer对象，可以继续使用这些好处，如canvas元素
+  + ![1271641902107_.pic_hd](/Users/queen/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/2.0b4.0.9/70c82dfb9120d9582c942df73e168a61/Message/MessageTemp/9e20f478899dc29eb19741386f9343c8/Image/1271641902107_.pic_hd.jpg)
+  + 硬件渲染过程：
+    + 确定并计算合成层
+    + 遍历和绘制每一个合成层
+    + 渲染引擎将所有绘制完的合成层合成起来
+  + 3D图形上下文：提供一组抽象接口，提供类似OpenGLES的功能，其主要目的是使用OpenGL绘制3D图形的能力
+
++ Chromium的硬件加速机制
+
+  + GraphicsLayer的支持![1281641902115_.pic_hd](/Users/queen/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/2.0b4.0.9/70c82dfb9120d9582c942df73e168a61/Message/MessageTemp/9e20f478899dc29eb19741386f9343c8/Image/1281641902115_.pic_hd.jpg)
+
+  + 框架：在Chromium中，所有的GPU硬件加速都是由一个进程负责完成的。GPU进程处理一些命令后，会向Renderer进程报告自己当前的状态，Renderer进程通过检查状态信息和自己的期望结果来确定是否满足自己的条件。GPU进程最终绘制的结果不再像软件渲染那样通过共享内存传递给Browser进程，而是直接将页面的内容绘制在浏览器的标签窗口内![1301641902132_.pic_hd](/Users/queen/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/2.0b4.0.9/70c82dfb9120d9582c942df73e168a61/Message/MessageTemp/9e20f478899dc29eb19741386f9343c8/Image/1301641902132_.pic_hd.jpg)
+
+  + 命令缓冲区：主要用于GPU进程和GPU的调用者进程传递GL操作命令。现有的实现是基于共享内存的方式来完成的，因而命令是基于GLES编码成特定的格式存储在共享内存中。共享内存方式采用了环形缓冲区的方式来管理，这表示内存可以循环使用，旧的命令会被新的命令所覆盖。
+
+    + 一条命令分为命令头和命令体。命令头是命令的原数据信息，包含命令的长度和命令的标识；命令体包含命令所需要的的其他信息，如命令的立即操作数
+    + 命令本身是保存在共享内存中的，另外共享内存的大小是固定的，对于传输较大数据的命令，如TexImage2D，Chromium采用Bucket机制。它的原理是：通过共享内存机制来分块传输，而后把分块的数据保存在本地的桶内，从而避免申请大块的共享内存
+  + Chromium合成器：将多个合成层合成并输出一个最终的结果，所以它的输入是多个待合成的合成层，每个层都有一些属性，输出是一个后端存储
+  
+    + 架构上，合成器采用表示和实现分离的原则![1311641902140_.pic_hd](/Users/queen/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/2.0b4.0.9/70c82dfb9120d9582c942df73e168a61/Message/MessageTemp/9e20f478899dc29eb19741386f9343c8/Image/1311641902140_.pic_hd.jpg)
+    + 合成器的主要组成分为：事件处理、合成层的表示和实现、合成层组成两种类型的树、合成调度器、合成器的输出结果、各种后端存储等资源、支持动画和3D变形功能所需的基础设施
+    + 合成过程：
+      1. 创建输出结果的目标对象“Surface”，即合成结果的存储空间
+      2. 开始一个新的帧，包括计算滚动和缩放大小、动画计算、重新计算网页的布局、绘制每个合成层等
+      3. 将Layer树中包含的这些变动同步到LayerImpl树中
+      4. 合成LayerImpl树中的各个层并交换前后帧缓冲区，完成一帧的绘制和显示动作
+    + 减少重绘：使用合适的网页分层技术以减少需要重新计算的布局和绘图；使用CSS 3D变形和动画技术
+  
++ 其他硬件加速模块
+
+  + 2D图形的硬件加速机制：使用GPU来绘制2D图形方法；应用场景：1.网页基本元素的绘制；2.HTML5的canvas元素
+  + WebGL
+  + CSS 3D变形
+  + 其他：视频解码和播放等
 
 #### JavaScript引擎
 
