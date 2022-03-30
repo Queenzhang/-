@@ -668,6 +668,8 @@
 
 + 音频
 
+  + 音频元素：HTML 5 Audio元素
+  + 基础设施：当webkit和Chromium需要输出解码后的音频数据时，通过从右侧自上向下、左侧自下向上的过程，然后使用共享内存的方式将解码后的数据输出到实际的物理设备中
   + Web Audio：提供了高层次的JavaScript接口，用来处理和合成声音
   + MIDI和Web MIDI：MIDI是一个通信标准，是电子乐器之间以及电子乐器与电脑之间的统一交流协议。Web MIDI技术定义了一系列接口来接收和发送MIDI指令，但是该技术本身并不提供语义上的控制，只是负责传输这些指令，所以渲染引擎其实并不知道这些指令的实际含义，这个与Web Audio不同
   + Web Speech：语音识别技术（Speech-to-Text）和合成语音技术（Text-to-Speech）。Web Speech是讲语音识别和合成语音技术提供给JavaScript接口，这样Web前端开发者可以在网页中使用它们
@@ -681,14 +683,115 @@
 
 #### 安全机制
 
++ 网页安全模型：当用户访问网页的时候，浏览器需要确保该网页中数据的安全性，如Cookie、用户名、密码等信息不会被其他的恶意网页所获取。
+  + 域（origin）：网页所在的域名、传输协议和端口等信息，是表明网页身份的重要标识。默认情况下，不同网页间的数据是被浏览器隔离的，不能互相访问（Same origin Policy）。跨域攻击是网页安全最主要的问题之一
+  + XSS（Cross Site Scripting）：执行跨域的JavaScript脚本代码。可以在HTTP消息头中定义一个名为“X-XSS-Protection”的字段，此时，浏览器会打开防止XSS攻击的过滤器
+  + CSP（Content Security Policy）：一种防止XSS攻击的技术，它使用HTTP消息头来指定网站能够标注哪些域中的哪些类型的资源被允许加载在该域的网页中，包括javaScript、CSS、HTML Frames、字体、图片和嵌入对象（插件、Java Applet等）
+  + CORS（Cross Origin Resource Sharing）：跨域资源共享，也是借助于HTTP消息头并通过定义一些字段来实现不同域之间交互数据
+    + CSP定义的是网页自身能够访问的某些域和资源，而CORS定义的是一个网页如何才能访问被同源策略禁止的跨域资源，规定了两者交互的协议和方式
+  + 消息传递机制（Cross Document Messaging）：通过window.postMessage接口让JavaScript在不同域的文档中传递消息称为可能。
+  + 安全传输协议（HTTPS）：HTTPS是在HTTP协议之上使用SSL技术来对传输的数据进行加密，从而保证了数据的安全性。
+    + SSL工作的主要流程是先进行服务器认证，然后是用户认证
+    + TLS是在SSL3.0基础上发展起来的，它使用了新的加密算法，所以同HTTPS不兼容。它用于两个通信应用程序之间，提供保密性和数据完整性
++ 沙箱模型
+  + 原理：对于网络上的网页，浏览器认为它们是不安全的，因为网页总是存在各种可能性。沙箱模型就是一种机制，将网页的运行限制在一个特定的环境中，使它只能访问有限的功能，那么即使网页工作的渲染引擎被攻击，它也不能获取渲染引擎工作的主机系统中的任何权限。
+  + 实现机制：沙箱模型严重依赖操作系统提供的技术，而不同操作系统提供的安全技术不一样，因此需要分别针对不同平台来实现。
+
 #### 移动WebKit
+
++ 触控和手势事件：
+
+  + HTML5 Touch Events：推荐的规范。该标准主要是定义如何将原始的触控事件以特定的方式传递给JavaScript引擎，然后再传递给注册的事件响应函数。在标准定义中，Touch Event分为四种类型：touchstart、touchmove、touchend和touchcancel
+  + Gesture Events：Safari浏览器支持。由浏览器来识别原始事件并将手势事件传递给Javascript代码。时间类型分为gesturestart、gesturechange、gestureend
+
++ meta标签可以帮助提供非常好的移动用户体验,如使网页的宽度适合屏幕、控制网页缩放等
+
+  ```html
+  <meta name="viewport" content="width=device-width,initial-sacle=0.9,minimum-sacle=0.5,maxium-scale=1.0,user-scaleable = no"> 
+  ```
+
++ Media Queries技术：响应式设计的基本思想是根据不同分辨率或者不同大小的屏幕，设计不同的布局。通过CSS规范中的Media Queries技术，区分屏幕或使用场景
+
+  ```css
+  @media(min-width:1280px) and (min-height:720px) and (orientation:landscape) {
+    body{……}
+  }
+  ```
+
++ 其他机制：
+
+  + 新渲染机制：提升渲染性能来增加响应速度，甚至不惜牺牲一些跟规范定义的行为不一致的地方。
+    + Tiled Backing Store：使用后端的缓存技术来预先绘制网页和减少网页的重绘动作（使用空间换时间的思路）
+    + 线程化渲染：将渲染过程分为若干个独立的步骤，然后使用不同的线程来完成其中的某个或几个步骤（一个重要的发展方向）
+    + 快速移动翻页：webkit要在快速滚动中绘制一个静止的元素非常困难，只能通过慢速重绘，去避免一种Rendering Artifacts（前面一帧的某些数据出现在后面的绘制中）
+  + Application Cache（应用缓存）：这一机制能够支持离线浏览，同时还能加速资源的访问并加快启动速度。其基本思想是使用缓存机制并缓存那些需要保存在本地的资源，开发者可以指定哪些是需要缓存的资源。
+  
+  ```html
+  <html manifest="app.appcache">
+  ```
+  
+  ```js
+  var appCache = window.applicationCache
+  appCache.addEventListener("updateready",function(event){
+    if(appCache.status == appCache.UPDATEREADY){
+      appCache.swapCache()
+    }else{
+      ...
+    }
+  })
+  appCache.update()
+  ```
+  
+  
+  
+  + Frame Flatterning（网页的多框结构）:该技术的含义是将框中的内容全部显示在网页中，通俗来讲就是将框中的内容平铺在网页中，而不用设置滚动条
 
 #### 调试机制
 
+​	支持调试HTML、CSS和JavaScript代码是浏览器或者渲染引擎需要提供的一项非常重要的功能。其中包括两种调试类型：功能——帮助HTML开发者使用单步调试等技术来查找代码中的问题；性能——采集JavaScript代码、网络等性能瓶颈。
+
++ Web Inspector
+  + 元素审查（Elements）：帮助开发者查看每一个DOM元素，同样可以查看它的样式信息
+  + 资源（Resources）：帮助开发者查看各种资源信息，包括内存存储、Cookie、离线缓存等
+  + 网路（Network）：帮助开发者了解和诊断网络功能和性能
+  + Javascript代码（Sources）：调试JavaScript代码，能够设置断点、单步调试语句等
+  + 时间序列（Timeline）：能够按照时间次序来收集网页消耗的内存、绘制的帧数和生成各种事件，帮助开发者分析网页性能
+  + 性能收集器（Profiles）：能够收集JavaScript代码使用CPU的情况、JavaScript堆栈、CSS选择器等信息，帮助开发者分析网页的运行行为
+  + 诊断器（Audits）：帮助开发者分析网页可能存在的问题或者可以改善的地方
+  + 控制台（Console）：可以输入JavaScript语句，由JavaScript引擎计算出结果。插件“PageSpeed”能够帮助全方位分析各种可能的优化点
++ 协议：调试机制的前端和后端通过使用一定格式的数据来进行通信，这些数据使用JSON格式来表示。 
++ 远程调试：Chromium支持远程调试
++ Chromium Tracing机制：如果需要分析Chromium自身问题，就可以借助这一工具
+
 #### Web前端的未来
+
++ 趋势
+  + 技术上
+    1. web能力的逐渐加强
+    2. web中将引入并行计算的能力
+    3. 性能将提升
+    4. 从web网页向web应用发展
+  + 大方向上
+    1. 平台化策略：web运行平台可以管理和运行web应用，即开发出同本地应用能力一样的应用程序，这方面浏览器不一定支持（虽然很多web运行平台是从浏览器基础上开发的，但不一样）
+    2. 移动化：能够跨操作系统，在移动领域是HTML5不停向前发展的一个推力
+    3. 向不同应用领域渗透：对于一些热门领域如游戏，因为对功能和性能要求高，所以浏览器和Web平台对游戏的支持是非常重要的发展方向
+    4. web和HTML5技术：向不同的嵌入式领域发展，因为跨平台和低成本性，很适合应用在电视、车载系统、家用电器等领域
++ 嵌入式应用模式：很多web运行平台是基于嵌入式模式的接口开发出来的
+  + 嵌入式模式：在渲染引擎之上提供一层本地（C++或Java）接口，这些接口提供了渲染网页的能力，渲染的结果被绘制到一个控件或者子窗口中，本地应用通过本地接口来获得渲染网页的能力。
+  + 两个典型的基于Webkit渲染引擎的嵌入式接口：CEF和Android WebView
++ web应用和web运行环境
+  + web应用分为：Packaged Application（应用包含了自身所需要的所有资源，不需要网络就能运行）和Hosted Application（除了Packaged Application）
+  + web运行环境：
+    + 运行HTML5的能力
+    + 对（离线）存储的要求
+    + 将web资源文件打包的支持
+    + 应用程序的运行模式：也就是生命周期方面的支持
+    + 能够启动并运行web应用
 
 #### 总结
 
 使用HTML技术来编写网页或Web应用，了解其背后的工作原理是写出高效代码的有效捷径。Webkit只是浏览器内核的其中一种，对于它的学习不能包括其他主流浏览器，但也是很有借鉴意义。
 
-很多书都在说如何的写出高效的代码，比如《高性能JavaSript》等，其实本质都是基于语言本身的特性和浏览器实现的机制，这本书扩展了我的视野和知识边界
+很多书都在说如何的写出高效的代码，比如《高性能JavaSript》等，其实本质都是基于语言本身的特性和浏览器实现的机制，这本书扩展了我的视野和知识边界。
+
+另外由于书出版的日期较久，很多内容都有了更新，不过重要的还是学习思想。
