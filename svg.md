@@ -579,15 +579,178 @@ SVG需要确定蒙版的透明度，每个像素由4个值描述：R,G,B,透明�
 
 SVG动画特性基于"同步多媒体集成语言"(SMIL)规范。在这个动画系统中，可以指定想要进行的动画的属性(颜色、动作或者变形等)的起始值和初始值，以及动画开始的时间和持续时间。
 
+**animate元素**指定了以下信息：
+
+| 属性          | 说明                                                         |
+| ------------- | ------------------------------------------------------------ |
+| attributeName | 动画中改变的值                                               |
+| attributeType | width是一个XML属性，另一个常用的值是CSS，如果忽略这个值，则默认是auto，会先搜索CSS属性，再搜索XML属性 |
+| from to       | 起始值和结束值                                               |
+| values        | from和to只能指定两个值，使用values时可以以列表形式同时指定多个中间值，变换会依次使用列表内的值。如果要交替动画，则指定为start,end,start三个即可实现 |
+| dur           | 持续时间                                                     |
+| fill          | 结束时该怎么做，freeze表示冻结，如果不指定会使用默认值：remove，表示动画完成后会返回原始值。 |
+| repeatCount   | 动画重复次数                                                 |
+| repeatDur     | 重复应该进行多长时间                                         |
+| calcMode      | 过渡类型，可以为线性(linear)，直接跳转(不支持过渡时直接跳转到结束值discrete)，spline，paced等。 |
+
 ##### 2. 动画时间与同步动画
+
+SVG动画用到的动画时钟在SVG加载完成时开始启动计时，当用户离开页面时停止计时。因此可以以下列任意一种方式指定动画开始和持续时间为一个数值。
+
+| 时间                          | 说明                                               |
+| ----------------------------- | -------------------------------------------------- |
+| 时分秒的完整时间值            | 例如1:20:23                                        |
+| 分秒形式                      | 例如02:15                                          |
+| 以h、min、s或者ms结尾的时间值 | 例如begin="3.5s" dur="1min" 值和单位之间不能有空格 |
+
+可以将一个动画的开始时间设置另一个动画的结束或开始，而不是固定的时间值。也可以在两个过渡之间加一个延迟时间。
+
+```text
+<rect x="10" y="10" width="200" height="25" stroke="black" fill="none">
+	<animate 
+		id="c1"
+		attributeName="width" 
+		attributeType="XML" 
+		from="200" to="20" 
+		begin="0s" dur="5s" 
+		fill="freeze">
+	</animate>
+</rect>
+<circle cx="120" cy="60" r="10" stroke="black" fill="none">
+	<animate
+		attributeName="r"
+		attributeType="XML"
+		begin="c1.end+5s"
+		from="10" to="20"
+		dur="4s"
+	></animate>
+</circle>
+```
 
 ##### 3. 多边形和path动画
 
+多边形和path的值为数字列表，也可以对这些属性进行过渡，但是要保证数字列表中数字的数字数量没有变即可。
+
+```text
+<polygon points="30 30 70 30 90 70 10 70" style="fill:#fcc;stroke:black">
+	<animate
+		attributeName="points"
+		attributeType="XML"
+		to="50 30 70 50 50 90 30 50"
+		begin="0s" dur="5s" fill="freeze"
+	></animate>
+</polygon>
+<path d="M15 50 Q40 15,50 50,65 32,100 40" style="fill:#fcc;stroke:black" transform="translate(0,50)">
+	<animate
+		attributeName="d"
+		attributeType="XML"
+		to="M50 15Q15 40,50 50,32 65,40 100"
+		begin="0s" dur="5s" fill="freeze"
+	></animate>
+</path>
+```
+
 ##### 4. 对坐标变换进行过渡
+
+animate元素不适合对平移、旋转、缩放进行过渡，因为这些坐标变换被包裹在transform属性内。**animateTransform元素**可以解决这个问题。通过**type**指定进行过渡的类型
+
+如果同时指定了多个坐标变换，比如同时对平移和缩放，则需要指定**additive属性**。additive属性默认为replace，即会替换动画对象的指定变换。不适合一系列变换，因为后面的会将之前的过渡覆盖掉，因此要设置additive属性值为sum。
+
+```text
+<rect x="-10" y="-10" width="20" height="20" style="fill:#ff9;stroke:black">
+	<animateTransform
+		attributeType="XML"
+		attributeName="transform" type="scale"
+		from="1" to="4 2"
+		dur ="3s"
+		begin = "0s" fill="freeze"
+		additive = "sum"
+	></animateTransform>
+	<animateTransform
+		attributeType="XML"
+		attributeName="transform" type="rotate"
+		from="0" to="90"
+		dur ="3s"
+		begin = "3s" fill="freeze"
+		additive = "sum"
+	></animateTransform>
+</rect>
+```
 
 ##### 5. 沿着path运动
 
+需要让过渡对象沿着更复杂的路径运动，则需要使用**animateMotion元素**。
+
+```text
+<rect x="-10" y="-10" width="20" height="20" style="fill:#ff9;stroke:black">
+	<animateMotion
+		path="M50,135C100,25 150,225 200,125"
+		dur="6s" fill="freeze"
+	></animateMotion>
+</rect>
+```
+
+​		<u>运动过程中，矩形不会自动根据轨迹方向旋转，因此需要设置animateMotion元素的rotate属性值为auto。</u>
+
+如果已经有了path轨迹，不想再在animateMotion元素中定义一次path，则可以使用mPath元素。mPath元素定义在animateMotion元素内部，通过xlink:href引用指定的路径即可。
+
+```text
+<path id="movePath" d="M50,135C100,25 150,225 200,125" fill="none" stroke="black"></path>
+<rect x="-10" y="-10" width="20" height="20" style="fill:#ff9;stroke:black">
+		<animateMotion dur="6s" fill="freeze" rotate="auto">
+			<mPath xlink:href="#movePath"></mPath>
+		</animateMotion>
+</rect>
+```
+
 ##### 6. CSS处理SVG动画
+
+现代浏览器都支持CSS梳理SVG动画，使用CSS处理SVG动画需要两个步骤：一是选中要运动的元素，然后设置将动画属性作为一个整体进行设置。二是告诉浏览器改变选中元素的哪个属性以及在动画的什么阶段。这些都定义在@keyframes说明符中。
+
+| 动画属性                  | 说明                                                         |
+| ------------------------- | ------------------------------------------------------------ |
+| animation-name            | @keyframes说明符的名称                                       |
+| animation-duration        | 动画持续时长                                                 |
+| animation-timing-function | 如何计算中间值，也就是动画类型：线性，缓入缓出等等           |
+| animation-iteration-count | 重复次数                                                     |
+| animation-direction       | 动画是反向还是正向或者交替执行                               |
+| animation-play-state      | 可以设置为running或paused                                    |
+| animation-delya           | 延迟时间                                                     |
+| animation-fill-mode       | 动画不再执行时使用什么属性，可以为forwards(结束时属性)、backwards(开始时属性值)、both |
+
+```xml
+<defs>
+	<g id="starDef">
+		<circle cx="50" cy="50" r="10"></circle>
+	</g>
+</defs>
+<use id="star" class="starStyle" xlink:href="#starDef" fill="#008000"></use>
+```
+
+```css
+.starStyle{
+	animation-name:starAnim;
+	animation-duration: 2s;
+	animation-iteration-count: 4;
+	animation-direction: alternate;
+	animation-timing-function: ease;
+	animation-play-state: running; 
+}
+@keyframes starAnim{
+	0%{
+		fill:red;
+		transform: translate(100px,100px);
+	}
+	50%{
+		fill:green;
+		transform: translate(120px,100px);
+	}
+	100%{
+		fill:blue;
+		transform: translate(100px,120px);
+	}
+}
+```
 
 #### HTML 5 Canvas vs. SVG
 
