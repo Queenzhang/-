@@ -778,8 +778,5 @@ SVG 基于 XML，这意味着 SVG DOM 中的每个元素都是可用的。您可
 - 复杂度高会减慢渲染速度（任何过度使用 DOM 的应用都不快）
 - 不适合游戏应用
 
-
-
-https://www.w3school.com.cn/svg/index.asp
-
-https://www.d3js.org.cn/svg/get_start/
+[参考1]:https://www.w3school.com.cn/svg/index.asp
+[参考2]:https://www.d3js.org.cn/svg/get_start/
