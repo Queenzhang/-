@@ -498,7 +498,470 @@ GoF提及的23种设计模式：
     // basketModule closure, but not in the returned public object
     console.log(basket);
     ```
+  
+  * 缺点：
     
+    * 当我们希望更改公共和私有成员的可见性时，实际上必须对使用该成员的每个地方进行更改。
     
+    * 我们也不能在稍后添加到对象的方法中访问私有成员。
+    
+    * 无法为私有成员创建自动化单元测试，以及当错误需要热修复时需要额外的复杂性。也不能轻易扩展私有成员。
+  
+  * 带有 WeakMap 的现代模块模式
+    
+    ```javascript
+    const basket = new WeakMap();
+    const doSomethingPrivate = new WeakMap();
+    const doSomethingElsePrivate = new WeakMap();
+    
+    class BasketModule {
+        constructor() {
+            // privates
+            basket.set(this, []);
+            doSomethingPrivate.set(this, () => {
+                //...
+            });
+            doSomethingElsePrivate.set(this, () => {
+                //...
+            });
+        }
+        // Public aliases to a private functions
+        doSomething() {
+            doSomethingPrivate.get(this)();
+        }
+        doSomethingElse() {
+            doSomethingElsePrivate.get(this)();
+        }
+        // Add items to our basket
+        addItem(values) {
+            const basketData = basket.get(this);
+            basketData.push(values);
+            basket.set(this, basketData);
+        }
+        // Get the count of items in the basket
+        getItemCount() {
+            return basket.get(this).length;
+        }
+        // Get the total value of items in the basket
+        getTotal() {
+            return basket
+                .get(this)
+                .reduce((currentSum, item) => item.price + currentSum, 0);
+        }
+    }
+    ```
 
-* **揭示模块模式**
+* **揭示模块模式**:只需在私有范围内定义所有函数和变量，并返回一个匿名对象，其中包含指向我们希望公开为私有功能的指针。而不是在从公共方法调用或访问公共变量时必须重复主对象的名称。
+  
+  ```javascript
+  let privateVar = 'Ben Cherry';
+  const publicVar = 'Hey there!';
+  
+  const privateFunction = () => {
+    console.log(`Name:${privateVar}`);
+  };
+  
+  const publicSetName = strName => {
+    privateVar = strName;
+  };
+  
+  const publicGetName = () => {
+    privateFunction();
+  };
+  
+  // Reveal public pointers to
+  // private functions and properties
+  const myRevealingModule = {
+    setName: publicSetName,
+    greeting: publicVar,
+    getName: publicGetName,
+  };
+  
+  export default myRevealingModule;
+  
+  // Usage:
+  import myRevealingModule from './myRevealingModule';
+  
+  myRevealingModule.setName('Paul Kinlan');
+  ```
+  
+  + 缺点：
+    
+    + 如果一个私有函数引用一个公共函数，那么如果需要补丁，这个公共函数就不能被覆盖。 这是因为私有函数将继续引用私有实现，并且该模式不适用于公共成员，仅适用于函数。
+    
+    + 引用私有变量的公共对象成员也受上述无补丁规则注释的约束。
+    
+    + 使用 Revealing Module 模式创建的模块可能比使用原始 Module 模式创建的模块更脆弱，因此在使用过程中应小心。
+
+* **单例模式**： 是一种将类的实例化限制为一个对象的设计模式。当需要一个对象来协调整个系统的动作时，这很有用。（模态框、alert弹窗）
+  
+  可以延迟它们的初始化，通常是因为它们需要一些在初始化期间可能不可用的信息。
+  
+  单例返回的既不是对象也不是“类”，而是一个结构。（类实例化）[闭包变量实际上不是闭包——提供闭包的函数范围是闭包]
+  
+  ```javascript
+  class Singleton {
+      constructor(options = {}) {
+        // set some properties for our singleton
+        this.name = 'SingletonTester';
+        this.pointX = options.pointX || 6;
+        this.pointY = options.pointY || 10;
+      }
+    }
+  
+    // our instance holder
+    let instance;
+  
+    // an emulation of static variables and methods
+    const SingletonTester = {
+      name: 'SingletonTester',
+      // Method for getting an instance. It returns
+      // a singleton instance of a singleton object
+      getInstance(options) {
+        if (instance === undefined) {
+          instance = new Singleton(options);
+        }
+  
+        return instance;
+      },
+    };
+  
+    const singletonTest = SingletonTester.getInstance({
+      pointX: 5,
+    });
+  
+    // Log the output of pointX just to verify it is correct
+    // Outputs: 5
+    console.log(singletonTest.pointX);
+  ```
+  
+  + 一个类必须只有一个实例，并且客户端必须可以从众所周知的访问点访问它。
+  
+  + 当唯一的实例应该可以通过子类化来扩展，并且客户端应该能够在不修改其代码的情况下使用扩展的实例。
+  
+  虽然 Singleton 有有效的用途，但通常当我们发现自己在 JavaScript 中需要它时，这表明我们可能需要重新评估我们的设计。它们通常表明系统中的模块要么<u>紧密耦合</u>，要么<u>逻辑过度分布</u>在代码库的多个部分中。 由于隐藏的依赖关系、创建多个实例的困难、存根依赖关系的困难等问题，单例可能更难测试。
++ **观察者模式**：它允许一个对象在另一个对象发生变化时得到通知，而不需要对象了解其依赖项。当观察者不再对主题的状态感兴趣时，可以简单地将它们分离出去。观察者模式常用于通知组件状态的变化。
+  
+  一个观察者模式包含以下几部分：
+  
+  1.    **Subject**：维护观察者列表，方便添加或删除观察者
+  
+  2.    **Observer**：为需要通知Subject状态变化的对象提供更新接口
+  
+  3.    **ConcreteSubject**：向观察者广播状态变化的通知，存储 ConcreteObservers 的状态
+  
+  4.    **ConcreteObserver**：存储对ConcreteSubject的引用，实现Observer的更新接口，保证状态与Subject一致
+  
+  ```javascript
+  class ObserverList {
+      constructor() {
+          this.observerList = [];
+      }
+  
+      add(obj) {
+          return this.observerList.push(obj);
+      }
+  
+      count() {
+          return this.observerList.length;
+      }
+  
+      get(index) {
+          if (index > -1 && index < this.observerList.length) {
+              return this.observerList[index];
+          }
+      }
+  
+      indexOf(obj, startIndex) {
+          let i = startIndex;
+  
+          while (i < this.observerList.length) {
+              if (this.observerList[i] === obj) {
+                  return i;
+              }
+              i++;
+          }
+  
+          return -1;
+      }
+  
+      removeAt(index) {
+          this.observerList.splice(index, 1);
+      }
+  }
+  ```
+  
+  ```javascript
+  class Subject {
+      constructor() {
+        this.observers = new ObserverList();
+      }
+  
+      addObserver(observer) {
+        this.observers.add(observer);
+      }
+  
+      removeObserver(observer) {
+        this.observers.removeAt(this.observers.indexOf(observer, 0));
+      }
+  
+      notify(context) {
+        const observerCount = this.observers.count();
+        for (let i = 0; i < observerCount; i++) {
+          this.observers.get(i).update(context);
+        }
+      }
+    }
+  ```
+  
+  ```javascript
+  class Observer {
+      constructor() {}
+      update() {
+          // ...
+      }
+  }
+  ```
+  
+  ```html
+  <button id="addNewObserver">Add New Observer checkbox</button>
+  <input id="mainCheckbox" type="checkbox"/>
+  <div id="observersContainer"></div>
+  ```
+  
+  ```javascript
+  // Concrete Subject
+  class ConcreteSubject extends Subject {
+      constructor(element) {
+        // Call the constructor of the super class.
+        super();
+        this.element = element;
+  
+        // Clicking the checkbox will trigger notifications to its observers
+        this.element.onclick = () => {
+          this.notify(this.element.checked);
+        };
+      }
+    }
+  
+    // Concrete Observer
+  
+    class ConcreteObserver extends Observer {
+      constructor(element) {
+        super();
+        this.element = element;
+      }
+  
+      // Override with custom update behaviour
+      update(value) {
+        this.element.checked = value;
+      }
+    }
+  
+    // References to our DOM elements
+    const addBtn = document.getElementById('addNewObserver');
+    const container = document.getElementById('observersContainer');
+    const controlCheckbox = new ConcreteSubject(
+      document.getElementById('mainCheckbox')
+    );
+  
+    const addNewObserver = () => {
+      // Create a new checkbox to be added
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      const checkObserver = new ConcreteObserver(check);
+  
+      // Add the new observer to our list of observers
+      // for our main subject
+      controlCheckbox.addObserver(checkObserver);
+  
+      // Append the item to the container
+      container.appendChild(check);
+    };
+  
+    addBtn.onclick = addNewObserver;
+  ```
+  
+  + **观察者模式和发布/订阅模式的区别**:我们会发现在JavaScript中观察者模式通常使用一种称为发布/订阅模式的变体来实现。虽然非常相似，但是这两种模式之间存在差异。
+    
+    + 观察者是一对一的关系，而发布/订阅模式是一对多的关系。
+    
+    + 观察者模式要求接收主题通知的观察者（或对象）必须将此兴趣订阅到触发事件的对象（主题）；发布/订阅模式使用主题/事件通道，该通道位于希望接收通知的对象（订阅者）和触发事件的对象（发布者）之间。 此事件系统允许代码定义应用程序特定事件，这些事件可以传递包含订阅者所需值的自定义参数。 这是为了避免订阅者和发布者之间的依赖关系。
+  
+  + **缺点**：在发布/订阅中，通过将发布者与订阅者分离，有时很难保证我们的应用程序的特定部分按我们预期的方式运行。例如：如果执行日志记录的订阅者崩溃（或由于某种原因无法运行），由于系统的解耦性质，发布者将无法看到这一点。
+
++ **混合模式**：Mixins是提供功能的类，这些功能可以很容易地被子类或子类组继承，以实现函数重用。
+  
+  + **子类化**：从基类或超类对象继承新对象的属性的术语。 在传统的面向对象编程中，一个类 B 可以扩展另一个类 A。这里我们认为 A 是 超类，B 是 A 的子类。因此，B 的所有实例都继承 A 的方法。但是 B 仍然能够定义自己的方法，包括那些覆盖最初由 A 定义的方法的方法。
+    
+    如果 B 需要调用 A 中已被覆盖的方法，我们将其称为方法链接。 如果 B 需要调用构造函数 A（超类），我们称此构造函数链接。
+  
+  + **Mixins**：可以视为具有可以在许多其他类之间轻松共享的属性和方法的类。我们定义的每个新类都可以有一个超类，它可以从中继承方法和属性。 类也可以定义自己的属性和方法。 我们可以利用这一事实来<u>促进功能重用</u>。
+    
+    虽然 JavaScript 类不能从多个超类继承，但我们仍然可以混合来自多个类的功能。能够将 mixin 定义为接受超类并从中创建新子类的函数。
+    
+    *将常见行为“混合”到类中:*
+    
+    ```javascript
+    const MyMixins = superclass =>
+        class extends superclass {
+            moveUp() {
+                console.log('move up');
+            }
+            moveDown() {
+                console.log('move down');
+            }
+            stop() {
+                console.log('stop! in the name of love!');
+            }
+        };
+    
+    
+    class CarAnimator {
+        moveLeft() {
+            console.log('move left');
+        }
+    }
+    // A skeleton personAnimator constructor
+    class PersonAnimator {
+        moveRandomly() {
+            /*..*/
+        }
+    }
+    
+    // Extend MyMixins using CarAnimator
+    class MyAnimator extends MyMixins(CarAnimator) {}
+    
+    // Create a new instance of carAnimator
+    const myAnimator = new MyAnimator();
+    myAnimator.moveLeft();
+    myAnimator.moveDown();
+    myAnimator.stop();
+    ```
+    
+    *扩展类：*
+    
+    ```javascript
+    class Car {
+        constructor({ model, color }) {
+            this.model = model || 'no model provided';
+            this.color = color || 'no colour provided';
+        }
+    }
+    
+    // Mixin
+    const Mixin = superclass =>
+        class extends superclass {
+            driveForward() {
+                console.log('drive forward');
+            }
+            driveBackward() {
+                console.log('drive backward');
+            }
+            driveSideways() {
+                console.log('drive sideways');
+            }
+        };
+    
+    class MyCar extends Mixin(Car) {}
+    
+    // Create a new Car
+    const myCar = new MyCar({
+        model: 'Ford Escort',
+        color: 'blue',
+    });
+    
+    // Test to make sure we now have access to the methods
+    myCar.driveForward();
+    myCar.driveBackward();
+    
+    // Outputs:
+    // drive forward
+    // drive backward
+    
+    const mySportCar = new MyCar({
+        model: 'Porsche',
+        color: 'red',
+    });
+    
+    mySportsCar.driveSideways();
+    
+    // Outputs:
+    // drive sideways
+    ```
+    
+    + 优点：Mixin 有助于减少功能重复并增加系统中的功能重用。 在应用程序可能需要跨对象实例共享行为的情况下，我们可以通过在 Mixin 中维护此共享功能来轻松避免任何重复，从而专注于仅在我们的系统中实现真正不同的功能。
+    
+    + 缺点：将功能注入类或对象原型会导致原型污染和函数来源的不确定性。 尤其是在大型系统中。
+
++ **装饰器模式**：装饰器是一种<u>结构设计模式</u>，旨在促进代码重用。 与 Mixins 类似，它们可以被认为是对象子类化的另一种可行的替代方案。装饰器提供了向系统中的现有类动态添加行为的能力。
+  
+  装饰器模式与对象的创建方式并没有紧密联系，而是专注于扩展其功能的问题。 我们不只是依赖原型继承，而是使用单个基类并逐步添加提供附加功能的装饰器对象。 这个想法是，向基础对象添加（装饰）属性或方法，因此它更加精简。
+  
+  ```javascript
+  // The constructor to decorate
+  class MacBook {
+      constructor() {
+          this.cost = 997;
+          this.screenSize = 11.6;
+      }
+      getCost() {
+          return this.cost;
+      }
+      getScreenSize() {
+          return this.screenSize;
+      }
+  }
+  
+  // Decorator 1
+  class Memory extends MacBook {
+      constructor(macBook) {
+          super();
+          this.macBook = macBook;
+      }
+  
+      getCost() {
+          return this.macBook.getCost() + 75;
+      }
+  }
+  
+  // Decorator 2
+  class Engraving extends MacBook {
+      constructor(macBook) {
+          super();
+          this.macBook = macBook;
+      }
+  
+      getCost() {
+          return this.macBook.getCost() + 200;
+      }
+  }
+  
+  // Decorator 3
+  class Insurance extends MacBook {
+      constructor(macBook) {
+          super();
+          this.macBook = macBook;
+      }
+  
+      getCost() {
+          return this.macBook.getCost() + 250;
+      }
+  }
+  
+  // init main object
+  let mb = new MacBook();
+  
+  // init decorators
+  mb = new Memory(mb);
+  mb = new Engraving(mb);
+  mb = new Insurance(mb);
+  
+  // Outputs: 1522
+  console.log(mb.getCost());
+  
+  // Outputs: 11.6
+  console.log(mb.getScreenSize());
+  ```
+  
+  
